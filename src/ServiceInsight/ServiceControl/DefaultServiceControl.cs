@@ -237,18 +237,13 @@ namespace ServiceInsight.ServiceControl
             {
                 Authenticator = new NtlmAuthenticator()
             };
-            var deserializer = new JsonMessageDeserializer { DateFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ss.FFFFFFFK" };
-            var xdeserializer = new XmlDeserializer();
+
             client.ClearHandlers();
-            client.AddHandler("application/json", deserializer);
-            client.AddHandler("text/json", deserializer);
-            client.AddHandler("text/x-json", deserializer);
-            client.AddHandler("text/javascript", deserializer);
-
-            client.AddHandler("application/xml", xdeserializer);
-            client.AddHandler("text/xml", xdeserializer);
-            client.AddHandler("*", xdeserializer);
-
+            client.AddJsonDeserializer(new JsonMessageDeserializer
+            {
+                DateFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ss.FFFFFFFK",
+            });
+            client.AddXmlDeserializer(new XmlDeserializer());
             client.AddDefaultHeader("Accept-Encoding", "gzip,deflate");
 
             return client;
