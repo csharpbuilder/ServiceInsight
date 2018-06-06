@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Net;
     using System.Threading.Tasks;
     using Autofac;
     using Caliburn.Micro;
@@ -13,11 +14,25 @@
 
     public class ServiceControlConnectionViewModel : Screen
     {
-        public const string ConnectingToServiceControl = "Connecting to ServiceControl...";
+        const string ConnectingToServiceControl = "Connecting to ServiceControl...";
+        const string ConnectionErrorMessage = "There was an error connecting to ServiceControl. Either the address is not valid or the service is down.";
+        const string CertValidationErrorMessage = "There was an error connecting to ServiceControl. SSL certificate is not valid.";
+        static bool certValidationFailed;
 
         ISettingsProvider settingsProvider;
         ProfilerSettings appSettings;
         IContainer container;
+
+        static ServiceControlConnectionViewModel()
+        {
+            ServicePointManager.ServerCertificateValidationCallback = (sender, certificate, chain, errors) => OnCertificateValidationFailed();
+        }
+
+        private static bool OnCertificateValidationFailed()
+        {
+            certValidationFailed = true;
+            return ApplicationConfiguration.SkipCertificateValidation;
+        }
 
         public ServiceControlConnectionViewModel(
             ISettingsProvider settingsProvider,
@@ -31,7 +46,9 @@
 
         public string ServiceUrl { get; set; }
 
-        public bool IsAddressValid { get; set; }
+        public bool ShowError { get; set; }
+
+        public string ErrorMessage { get; set; }
 
         public bool WorkInProgress { get; private set; }
 
@@ -39,7 +56,7 @@
         {
             base.OnActivate();
 
-            IsAddressValid = true;
+            ShowError = false;
             ServiceUrl = appSettings.LastUsedServiceControl;
             RecentEntries = GetRecentServiceEntries();
         }
@@ -59,14 +76,20 @@
 
         public virtual async Task Accept()
         {
+            certValidationFailed = false;
             StartWorkInProgress();
             ServiceUrl = ServiceUrl.Trim();
-            IsAddressValid = await IsValidUrl(ServiceUrl);
-            if (IsAddressValid)
+            ShowError = await IsValidUrl(ServiceUrl) == false;
+            if (!ShowError)
             {
                 StoreConnectionAddress();
                 TryClose(true);
             }
+            else
+            {
+                ErrorMessage = certValidationFailed ? CertValidationErrorMessage : ConnectionErrorMessage;
+            }
+
             StopWorkInProgress();
         }
 
